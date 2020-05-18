@@ -1,0 +1,3 @@
+[submodule "telegram-export-converter"]
+	path = telegram-export-converter
+	url = https://github.com/KanegaeGabriel/telegram-export-converter.git
