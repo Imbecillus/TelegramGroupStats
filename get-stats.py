@@ -24,6 +24,16 @@ def save_csv(dictionary, csv_path):
             f.write(f'{k};{dictionary[k]}\n')
         f.close()
         
+# Like str.strip(), but removes the entire rest of the string after a char has been found
+def advanced_strip(word, characters):
+    for i in range(len(characters)):
+        c = characters[i]
+        ix = word.find(c)
+        if ix is not -1:
+            word = word[:ix]
+
+    return word
+
 
 json_path = sys.argv[1]
 print(f'Importing chat export from {json_path}', end=' ')
@@ -52,11 +62,16 @@ for m in json_dict:
         text = text.split()
 
         for word in text:
-            if word.startswith('#') and len(word) > 1:
-                if word not in hashtags.keys():
-                    hashtags[word] = 1
-                else:
-                    hashtags[word] += 1
+            if word.startswith('#'):
+                # Find and remove characters that can't be part of hashtags
+                word = advanced_strip(word, '()[]/\\?!%&.,;:-')
+
+                # If there's more than the '#' left, add to the dictionary
+                if len(word) > 1:
+                    if word not in hashtags.keys():
+                        hashtags[word] = 1
+                    else:
+                        hashtags[word] += 1
     
 print(f'Found {len(members)} people who wrote a message and {len(hashtags)} unique hashtags.')
 print('')
