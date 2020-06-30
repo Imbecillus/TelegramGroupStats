@@ -1,4 +1,4 @@
-# NOTE: This script needs the exported chat in JSON format. Pass the location of the file as the first argument.
+# NOTE: This script needs the exported chat in JSON format. Pass the location of the file as the last argument.
 print('TELEGRAM GROUP STATS')
 
 # IMPORTS
@@ -34,10 +34,40 @@ def advanced_strip(word, characters):
 
     return word
 
+def strip_formatting(input):
+    if type(input) is list:
+        text = ""
 
-json_path = sys.argv[1]
+        for text_part in input:
+            if type(text_part) is dict:
+                text += text_part['text']
+            else:
+                text += text_part
+
+        return text
+    else:
+        return input
+
+# Parsing arguments
+json_path = sys.argv[-1]
+export_csv = False
+export_json = False
+show_visualization = False
+export_visualization = False
+for argument in sys.argv:
+    if argument == '-csv':
+        export_csv = True
+    elif argument == '-json':
+        export_json = True
+    elif argument == '-v':
+        show_visualization = True
+    elif argument == '-png':
+        export_visualization = True
+
 print(f'Importing chat export from {json_path}', end=' ')
 json_dict = json.load(open(json_path, 'r', encoding='utf-8'))
+chat_name = json_dict['name']
+json_dict = json_dict['messages']
 print('done.')
 
 n_messages = len(json_dict)
@@ -45,16 +75,22 @@ n_messages = len(json_dict)
 print(f'Parsing through {n_messages} messages.')
 members = {}
 hashtags = {}
+memberzahl_log = {}
 for m in json_dict:
-    sender = json_dict[m].get('sender', None)
+    log_memberzahl = False
+
+    sender = m.get('from', None)
     if sender:
         if sender not in members.keys():
             members[sender] = 1
         else:
             members[sender] += 1
 
-    text = json_dict[m].get('content', None)
+    text = m.get('text', None)
     if text:
+        # Strip formatting
+        text = strip_formatting(text)
+
         # Replace newlines with whitespace
         text = text.replace('\\n',' ').lower()
 
@@ -72,8 +108,27 @@ for m in json_dict:
                         hashtags[word] = 1
                     else:
                         hashtags[word] += 1
+
+                if word == '#memberzahl':
+                    log_memberzahl = True
+        
+        if log_memberzahl and len(text) == 2:
+            # Contains #memberzahl and only two words. One is the hashtag, the other is the number
+            try:
+                if text[0] == "#memberzahl":
+                    memberzahl = int(text[1].replace('.', ''))
+                else:
+                    memberzahl = int(text[0].replace('.', ''))
+
+                timestamp = m.get('date')
+                
+                memberzahl_log[timestamp] = memberzahl
+            except:
+                print('Unexpected occurence of #memberzahl; skipped')
+
     
 print(f'Found {len(members)} people who wrote a message and {len(hashtags)} unique hashtags.')
+print(f'Found {len(memberzahl_log)} times #memberzahl.')
 print('')
 
 # Sorting and printing...
@@ -84,16 +139,63 @@ print(' ')
 print('USERS')
 sort_and_print(members.items(), percentages=n_messages)
 
-# Export to csv
-print('')
-print('Saving stat json and csv files.')
 members_file = json_path.split('\\')[-1][0:-5] + '_members'
 hashtags_file = json_path.split('\\')[-1][0:-5] + '_hashtags'
+memberzahl_file = json_path.split('\\')[-1][0:-5] + '_memberzahl'
 
 # Export json files
-json.dump(members, open(members_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
-json.dump(hashtags, open(hashtags_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
+if export_json:
+    print('Exporting json files...')
+    json.dump(members, open(members_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    json.dump(hashtags, open(hashtags_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    json.dump(memberzahl_log, open(memberzahl_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
 
 # Export csv files
-save_csv(members, members_file + '.csv')
-save_csv(hashtags, hashtags_file + '.csv')
+if export_csv:
+    print('Exporting csv files...')
+    save_csv(members, members_file + '.csv')
+    save_csv(hashtags, hashtags_file + '.csv')
+    save_csv(memberzahl_log, memberzahl_file + '.csv')
+
+if show_visualization:
+    print('Showing visualizations...')
+    import matplotlib.pyplot as plt
+
+    print('   Users')
+    members = {k: v for k, v in sorted(members.items(), key=lambda item: item[1])}
+    keys = [k for k in members.keys()]
+    for k in keys:
+        if members[k] < 250:
+            members.pop(k)
+
+    plt.bar([x + 1 for x in range(len(members))], [members[x] for x in members.keys()])
+    plt.xticks([x + 1 for x in range(len(members))], [x for x in members.keys()], rotation='vertical', fontsize='x-small')
+    plt.title(f"User-Aktivität in {chat_name}")
+    plt.show()
+    if export_visualization:
+        plt.savefig(members_file + '.png')
+
+    print('   Hashtags')
+    hashtags = {k: v for k, v in sorted(hashtags.items(), key=lambda item: item[1])}
+    keys = [k for k in hashtags.keys()]
+    for k in keys:
+        if hashtags[k] < 75:
+            hashtags.pop(k)
+
+    plt.bar([x + 1 for x in range(len(hashtags))], [hashtags[x] for x in hashtags.keys()])
+    plt.xticks([x + 1 for x in range(len(hashtags))], [x for x in hashtags.keys()], rotation='vertical', fontsize='x-small')
+    plt.title(f"Hashtags in {chat_name}")
+    plt.show()
+    if export_visualization:
+        plt.savefig(hashtags_file + '.png')
+
+    print('   Memberzahl')
+    plt.plot([x for x in memberzahl_log.keys()], [y for y in memberzahl_log.values()])
+    plt.title(f"User-Entwicklung in {chat_name}")
+    ticks = [x for x in memberzahl_log.keys()]
+    ticks = [ticks[0], ticks[-1]]
+    plt.xticks(ticks)
+    plt.ylim(bottom=0)
+    plt.show()
+    if export_visualization:
+        plt.savefig(memberzahl_file + '.png')
