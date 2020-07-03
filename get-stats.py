@@ -91,6 +91,7 @@ for m in messagelist:
     # Skip message, if the id is already logged in parsed_messages
     mid = m.get("id")
     if mid in parsed_messages:
+        print(f'Message {mid} double; skipping')
         continue
     else:
         parsed_messages.append(mid)
