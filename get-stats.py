@@ -8,16 +8,28 @@ import argparse
 from datetime import datetime
 
 # FUNCTIONS
-def sort_and_print(items, percentages=False):
+def sort_and_print(items, percentages=False, stop_at=None):
     sorted_items = sorted(items, key=lambda key_value: key_value[1], reverse=True)
+
+    n = 0
 
     if not percentages:
         for name, number in sorted_items:
-            print(f'{name}: {number}')
+            print(f'{n} -- {name}: {number}')
+
+            n += 1
+            if stop_at is not None:
+                if n == stop_at:
+                    return
     else:
         total = percentages
         for name, number in sorted_items:
-            print(f'{name}: {number} ({round(100 * number / total, 2)}%)')
+            print(f'{n} -- {name}: {number} ({round(100 * number / total, 2)}%)')
+
+            n += 1
+            if stop_at is not None:
+                if n == stop_at:
+                    return
 
 def save_csv(dictionary, csv_path):
     with open(csv_path, 'w+', encoding='utf-8') as f:
@@ -61,10 +73,11 @@ parser = argparse.ArgumentParser(description='Analyses json exported Telegram ch
 parser.add_argument('json_paths', metavar='P', type=str, nargs=argparse.REMAINDER, help='path(s) to the json exports')
 parser.add_argument('--json', action='store_true', help='Save json exports')
 parser.add_argument('--csv', action='store_true', help='Save csv exports')
-parser.add_argument('--v', dest='vis', action='store_true', help='Create visualizations')
+parser.add_argument('--vis', dest='vis', action='store_true', help='Create visualizations')
 parser.add_argument('--png', action='store_true', help='Save png exports of visualizations')
 parser.add_argument('--member_history', nargs='?', help='Import a json file of past #memberzahl values')
 parser.add_argument('--log', action='store_true', help='Logarithmic scales for visualizations')
+parser.add_argument('--p', dest='print', nargs='?', type=int, help='Print p stats to command line. Set to -1 to print everything.')
 
 arguments = parser.parse_args(sys.argv[1:])
 
@@ -73,6 +86,7 @@ export_visualization = arguments.png
 export_csv = arguments.csv
 export_json = arguments.json
 json_paths = arguments.json_paths
+p = arguments.print
 
 # Importing chat exports
 messagelist = []
@@ -168,11 +182,13 @@ print('')
 
 # Sorting and printing...
 print('HASHTAGS')
-sort_and_print(hashtags.items())
+if p >= 0:
+    sort_and_print(hashtags.items(), stop_at=p)
 print(' ')
 
 print('USERS')
-sort_and_print(members.items(), percentages=n_messages)
+if p >= 0:
+    sort_and_print(hashtags.items(), percentages=n_messages, stop_at=p)
 
 members_file = json_path.split('\\')[-1][0:-5] + '_members'
 hashtags_file = json_path.split('\\')[-1][0:-5] + '_hashtags'
