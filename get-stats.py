@@ -84,8 +84,16 @@ print(f'Parsing through {n_messages} messages.')
 members = {}
 hashtags = {}
 memberzahl_log = {}
+parsed_messages = []
 for m in messagelist:
     log_memberzahl = False
+
+    # Skip message, if the id is already logged in parsed_messages
+    mid = m.get("id")
+    if mid in parsed_messages:
+        continue
+    else:
+        parsed_messages.append(mid)
 
     sender = m.get('from', None)
     if sender:
