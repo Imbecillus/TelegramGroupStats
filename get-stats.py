@@ -4,6 +4,8 @@ print('TELEGRAM GROUP STATS')
 # IMPORTS
 import sys
 import json
+import argparse
+from datetime import datetime
 
 # FUNCTIONS
 def sort_and_print(items, percentages=False):
@@ -54,18 +56,23 @@ export_csv = False
 export_json = False
 show_visualization = False
 export_visualization = False
-for argument in sys.argv[1:]:
-    if argument == '-csv':
-        export_csv = True
-    elif argument == '-json':
-        export_json = True
-    elif argument == '-v':
-        show_visualization = True
-    elif argument == '-png':
-        export_visualization = True
-    else:
-        if not argument.startswith('-'):
-            json_paths.append(argument)
+
+parser = argparse.ArgumentParser(description='Analyses json exported Telegram chats for user activity, frequency of hashtags and #memberzahl.')
+parser.add_argument('json_paths', metavar='P', type=str, nargs=argparse.REMAINDER, help='path(s) to the json exports')
+parser.add_argument('--json', action='store_true', help='Save json exports')
+parser.add_argument('--csv', action='store_true', help='Save csv exports')
+parser.add_argument('--v', dest='vis', action='store_true', help='Create visualizations')
+parser.add_argument('--png', action='store_true', help='Save png exports of visualizations')
+parser.add_argument('--member_history', nargs='?', help='Import a json file of past #memberzahl values')
+parser.add_argument('--log', action='store_true', help='Logarithmic scales for visualizations')
+
+arguments = parser.parse_args(sys.argv[1:])
+
+show_visualization = arguments.vis
+export_visualization = arguments.png
+export_csv = arguments.csv
+export_json = arguments.json
+json_paths = arguments.json_paths
 
 # Importing chat exports
 messagelist = []
@@ -79,22 +86,33 @@ for json_path in json_paths:
     print('done.')
 
 n_messages = len(messagelist)
+n = 0
 
 print(f'Parsing through {n_messages} messages.')
 members = {}
 hashtags = {}
 memberzahl_log = {}
-parsed_messages = []
+
+# Importing memberzahl history (if given)
+if arguments.member_history is not None:
+    memberzahl_log = json.load(open(arguments.member_history, 'r', encoding='utf-8'))
+
+newest_message = -1
+
 for m in messagelist:
     log_memberzahl = False
 
+    n = n + 1
+    if n % int(0.05 * n_messages) == 0:
+        print(f' {round(n / n_messages * 100, 2)}%')
+
     # Skip message, if the id is already logged in parsed_messages
-    mid = m.get("id")
-    if mid in parsed_messages:
-        print(f'Message {mid} double; skipping')
+    mid = int(m.get("id"))
+    if mid < newest_message:
+        print(f'  Message {mid} double; skipping')
         continue
     else:
-        parsed_messages.append(mid)
+        newest_message = mid
 
     sender = m.get('from', None)
     if sender:
@@ -141,7 +159,7 @@ for m in messagelist:
                 
                 memberzahl_log[timestamp] = memberzahl
             except:
-                print('Unexpected occurence of #memberzahl; skipped')
+                print('  Unexpected occurence of #memberzahl; skipped')
 
     
 print(f'Found {len(members)} people who wrote a message and {len(hashtags)} unique hashtags.')
@@ -188,6 +206,9 @@ if show_visualization:
     plt.bar([x + 1 for x in range(len(members))], [members[x] for x in members.keys()])
     plt.xticks([x + 1 for x in range(len(members))], [x for x in members.keys()], rotation='vertical', fontsize='x-small')
     plt.title(f"User-Aktivität in {chat_name}")
+    plt.grid(True, axis='y', linestyle='--')
+    if arguments.log:
+        plt.yscale('log')
     plt.show()
     if export_visualization:
         plt.savefig(members_file + '.png')
@@ -201,18 +222,19 @@ if show_visualization:
 
     plt.bar([x + 1 for x in range(len(hashtags))], [hashtags[x] for x in hashtags.keys()])
     plt.xticks([x + 1 for x in range(len(hashtags))], [x for x in hashtags.keys()], rotation='vertical', fontsize='x-small')
+    if arguments.log:
+        plt.yscale('log')
     plt.title(f"Hashtags in {chat_name}")
+    plt.grid(True, axis='y', linestyle='--')
     plt.show()
     if export_visualization:
         plt.savefig(hashtags_file + '.png')
 
     print('   Memberzahl')
-    plt.plot([x for x in memberzahl_log.keys()], [y for y in memberzahl_log.values()])
+    plt.plot([datetime.strptime(x, '%Y-%m-%dT%H:%M:%S') for x in memberzahl_log.keys()], [y for y in memberzahl_log.values()])
     plt.title(f"User-Entwicklung in {chat_name}")
-    ticks = [x for x in memberzahl_log.keys()]
-    ticks = [ticks[0], ticks[-1]]
-    plt.xticks(ticks)
     plt.ylim(bottom=0)
+    plt.grid(True, axis='both', linestyle='--')
     plt.show()
     if export_visualization:
         plt.savefig(memberzahl_file + '.png')
