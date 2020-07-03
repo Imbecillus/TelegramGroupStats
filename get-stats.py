@@ -49,12 +49,12 @@ def strip_formatting(input):
         return input
 
 # Parsing arguments
-json_path = sys.argv[-1]
+json_paths = []
 export_csv = False
 export_json = False
 show_visualization = False
 export_visualization = False
-for argument in sys.argv:
+for argument in sys.argv[1:]:
     if argument == '-csv':
         export_csv = True
     elif argument == '-json':
@@ -63,20 +63,28 @@ for argument in sys.argv:
         show_visualization = True
     elif argument == '-png':
         export_visualization = True
+    else:
+        if not argument.startswith('-'):
+            json_paths.append(argument)
 
-print(f'Importing chat export from {json_path}', end=' ')
-json_dict = json.load(open(json_path, 'r', encoding='utf-8'))
-chat_name = json_dict['name']
-json_dict = json_dict['messages']
-print('done.')
+# Importing chat exports
+messagelist = []
+for json_path in json_paths:
+    print(f'Importing chat export from {json_path}', end=' ')
+    json_dict = json.load(open(json_path, 'r', encoding='utf-8'))
+    chat_name = json_dict['name']
+    json_dict = json_dict['messages']
+    for m in json_dict:
+        messagelist.append(m)
+    print('done.')
 
-n_messages = len(json_dict)
+n_messages = len(messagelist)
 
 print(f'Parsing through {n_messages} messages.')
 members = {}
 hashtags = {}
 memberzahl_log = {}
-for m in json_dict:
+for m in messagelist:
     log_memberzahl = False
 
     sender = m.get('from', None)
