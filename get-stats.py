@@ -6,6 +6,7 @@ import sys
 import json
 import argparse
 from datetime import datetime
+from datetime import timedelta
 
 # FUNCTIONS
 def sort_and_print(items, percentages=False, stop_at=None):
@@ -15,7 +16,7 @@ def sort_and_print(items, percentages=False, stop_at=None):
 
     if not percentages:
         for name, number in sorted_items:
-            print(f'{n} -- {name}: {number}')
+            print(f'{n+1} -- {name}: {number}')
 
             n += 1
             if stop_at is not None:
@@ -24,7 +25,7 @@ def sort_and_print(items, percentages=False, stop_at=None):
     else:
         total = percentages
         for name, number in sorted_items:
-            print(f'{n} -- {name}: {number} ({round(100 * number / total, 2)}%)')
+            print(f'{n+1} -- {name}: {number} ({round(100 * number / total, 2)}%)')
 
             n += 1
             if stop_at is not None:
@@ -78,6 +79,7 @@ parser.add_argument('--png', action='store_true', help='Save png exports of visu
 parser.add_argument('--member_history', nargs='?', help='Import a json file of past #memberzahl values')
 parser.add_argument('--log', action='store_true', help='Logarithmic scales for visualizations')
 parser.add_argument('--p', dest='print', nargs='?', type=int, help='Print p stats to command line. Set to -1 to print everything.')
+parser.add_argument('--from', dest='starting_time', nargs='?', help='Starting timestamp. Format: "YYYY/MM/DD-HH:MM:SS"')
 
 arguments = parser.parse_args(sys.argv[1:])
 
@@ -87,6 +89,10 @@ export_csv = arguments.csv
 export_json = arguments.json
 json_paths = arguments.json_paths
 p = arguments.print
+if arguments.starting_time is not None:
+    starting_time = datetime.strptime(arguments.starting_time, '%Y/%m/%d-%H:%M:%S')
+else:
+    starting_time = None
 
 # Importing chat exports
 messagelist = []
@@ -127,6 +133,17 @@ for m in messagelist:
         continue
     else:
         newest_message = mid
+
+    # Skip message if it is before the set starting time
+    if starting_time is not None:
+        m_time = m.get('date')
+        m_time = datetime.strptime(m_time, '%Y-%m-%dT%H:%M:%S')
+        difference = m_time - starting_time
+        if (difference / timedelta(seconds=1)) < 0:
+            continue
+        else:
+            print(f'  Reached starting time ({starting_time})')
+            starting_time = None
 
     sender = m.get('from', None)
     if sender:
@@ -188,7 +205,7 @@ print(' ')
 
 print('USERS')
 if p >= 0:
-    sort_and_print(hashtags.items(), percentages=n_messages, stop_at=p)
+    sort_and_print(members.items(), percentages=n_messages, stop_at=p)
 
 members_file = json_path.split('\\')[-1][0:-5] + '_members'
 hashtags_file = json_path.split('\\')[-1][0:-5] + '_hashtags'
