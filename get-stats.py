@@ -9,13 +9,16 @@ from datetime import datetime
 from datetime import timedelta
 
 # FUNCTIONS
-def sort_and_print(items, percentages=False, stop_at=None):
+def sort_and_print(items, percentages=False, stop_at=None, replace_member_names=False):
     sorted_items = sorted(items, key=lambda key_value: key_value[1], reverse=True)
 
     n = 0
 
     if not percentages:
         for name, number in sorted_items:
+            if replace_member_names:
+                name = name_from_uid[name]
+
             print(f'{n+1} -- {name}: {number}')
 
             n += 1
@@ -25,6 +28,9 @@ def sort_and_print(items, percentages=False, stop_at=None):
     else:
         total = percentages
         for name, number in sorted_items:
+            if replace_member_names:
+                name = name_from_uid[name]
+
             print(f'{n+1} -- {name}: {number} ({round(100 * number / total, 2)}%)')
 
             n += 1
@@ -117,6 +123,9 @@ memberzahl_log = {}
 if arguments.member_history is not None:
     memberzahl_log = json.load(open(arguments.member_history, 'r', encoding='utf-8'))
 
+# Initialize member dictionary
+name_from_uid = {}
+
 newest_message = -1
 
 for m in messagelist:
@@ -145,12 +154,15 @@ for m in messagelist:
             print(f'  Reached starting time ({starting_time})')
             starting_time = None
 
-    sender = m.get('from', None)
+    sender = m.get('from_id', None)
     if sender:
         if sender not in members.keys():
             members[sender] = 1
         else:
             members[sender] += 1
+
+        if sender not in name_from_uid.keys():
+            name_from_uid[sender] = m.get('from', None)
 
     text = m.get('text', None)
     if text:
@@ -205,7 +217,7 @@ print(' ')
 
 print('USERS')
 if p >= 0:
-    sort_and_print(members.items(), percentages=n_messages, stop_at=p)
+    sort_and_print(members.items(), percentages=n_messages, stop_at=p, replace_member_names=True)
 
 members_file = json_path.split('\\')[-1][0:-5] + '_members'
 hashtags_file = json_path.split('\\')[-1][0:-5] + '_hashtags'
@@ -217,6 +229,7 @@ if export_json:
     json.dump(members, open(members_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
     json.dump(hashtags, open(hashtags_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
     json.dump(memberzahl_log, open(memberzahl_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    json.dump(name_from_uid, open(members_file + '_key.json', 'w', encoding='utf-8'), ensure_ascii=False)
 
 # Export csv files
 if export_csv:
@@ -237,7 +250,7 @@ if show_visualization:
             members.pop(k)
 
     plt.bar([x + 1 for x in range(len(members))], [members[x] for x in members.keys()])
-    plt.xticks([x + 1 for x in range(len(members))], [x for x in members.keys()], rotation='vertical', fontsize='x-small')
+    plt.xticks([x + 1 for x in range(len(members))], [name_from_uid[x] for x in members.keys()], rotation='vertical', fontsize='x-small')
     plt.title(f"User-Aktivität in {chat_name}")
     plt.grid(True, axis='y', linestyle='--')
     if arguments.log:
