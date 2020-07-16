@@ -39,7 +39,7 @@ def sort_and_print(items, percentages=False, stop_at=None, replace_member_names=
                     return
 
 def save_csv(dictionary, csv_path):
-    with open(csv_path, 'w+', encoding='utf-8') as f:
+    with open(csv_path, 'w+', encoding='utf-32') as f:
         f.write('Entry;Count\n')
         for k in dictionary.keys():
             f.write(f'{k};{dictionary[k]}\n')
@@ -86,6 +86,7 @@ parser.add_argument('--member_history', nargs='?', help='Import a json file of p
 parser.add_argument('--log', action='store_true', help='Logarithmic scales for visualizations')
 parser.add_argument('--p', dest='print', nargs='?', type=int, help='Print p stats to command line. Set to -1 to print everything.')
 parser.add_argument('--from', dest='starting_time', nargs='?', help='Starting timestamp. Format: "YYYY/MM/DD-HH:MM:SS"')
+parser.add_argument('--hashtag', dest='hashtag_export', action='append', help='Specify a hashtag. The script will find each occurence of the hashtag and the message it was used in reply to and export it as a csv list. Can be used multiple times for multiple hashtags.')
 
 arguments = parser.parse_args(sys.argv[1:])
 
@@ -93,6 +94,7 @@ show_visualization = arguments.vis
 export_visualization = arguments.png
 export_csv = arguments.csv
 export_json = arguments.json
+export_hashtags = [x.lower() for x in arguments.hashtag_export]
 json_paths = arguments.json_paths
 p = arguments.print
 if arguments.starting_time is not None:
@@ -126,6 +128,11 @@ if arguments.member_history is not None:
 # Initialize member dictionary
 name_from_uid = {}
 
+# Initialize dictionary of hashtag histories
+hashtag_history = {}
+for hashtag in export_hashtags:
+    hashtag_history[hashtag] = []
+
 newest_message = -1
 
 for m_id in messagelist.keys():
@@ -135,14 +142,6 @@ for m_id in messagelist.keys():
     n = n + 1
     if n % int(0.05 * n_messages) == 0:
         print(f' {round(n / n_messages * 100, 2)}%')
-
-    # Skip message, if the id is already logged in parsed_messages
-    #mid = int(m.get("id"))
-    #if mid < newest_message:
-    #    print(f'  Message {mid} double; skipping')
-    #    continue
-    #else:
-    #    newest_message = mid
 
     # Skip message if it is from before the set starting time
     if starting_time is not None:
@@ -190,6 +189,20 @@ for m_id in messagelist.keys():
 
                 if word == '#memberzahl':
                     log_memberzahl = True
+
+                if word in export_hashtags:
+                    hashtag_message = strip_formatting(m.get('text', None))
+                    
+                    replied_to_message = m.get('reply_to_message_id', None)
+                    if replied_to_message is not None:
+                        replied_to_message = messagelist.get(replied_to_message, None)
+                        if replied_to_message is not None:
+                            replied_to_message = strip_formatting(replied_to_message.get('text', None))
+
+                    tagging_user = m.get('from', None)
+
+                    new_entry = [tagging_user, replied_to_message, hashtag_message]
+                    hashtag_history[word].append(new_entry)
         
         if log_memberzahl and len(text) == 2:
             # Contains #memberzahl and only two words. One is the hashtag, the other is the number
@@ -204,6 +217,8 @@ for m_id in messagelist.keys():
                 memberzahl_log[timestamp] = memberzahl
             except:
                 print('  Unexpected occurence of #memberzahl; skipped')
+
+
 
     
 print(f'Found {len(members)} people who wrote a message and {len(hashtags)} unique hashtags.')
@@ -238,6 +253,16 @@ if export_csv:
     save_csv(members, members_file + '.csv')
     save_csv(hashtags, hashtags_file + '.csv')
     save_csv(memberzahl_log, memberzahl_file + '.csv')
+
+for hashtag in export_hashtags:
+    print(f'Exporting csv file for {hashtag}...')
+    path = json_path.split('\\')[-1][0:-5] + '_' + hashtag[1:] + '.csv'
+    with open(path, 'w+', encoding='utf-32') as f:
+        f.write('Tagger;Message replied to;Original message\n')
+
+        for entry in hashtag_history[hashtag]:
+            f.write(f'"{entry[0]}";"{entry[1]}";"{entry[2]}";\n')
+        f.close()
 
 if show_visualization:
     print('Showing visualizations...')
