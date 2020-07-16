@@ -192,13 +192,13 @@ for m_id in messagelist.keys():
                     log_memberzahl = True
 
                 if word in export_hashtags:
-                    hashtag_message = strip_formatting(m.get('text', None))
+                    hashtag_message = strip_formatting(m.get('text', None)).replace('\n', ' ')
                     
                     replied_to_message = m.get('reply_to_message_id', None)
                     if replied_to_message is not None:
                         replied_to_message = messagelist.get(replied_to_message, None)
                         if replied_to_message is not None:
-                            replied_to_message = strip_formatting(replied_to_message.get('text', None))
+                            replied_to_message = strip_formatting(replied_to_message.get('text', None)).replace('\n', ' ')
 
                     tagging_user = m.get('from', None)
 
