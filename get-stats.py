@@ -101,14 +101,14 @@ else:
     starting_time = None
 
 # Importing chat exports
-messagelist = []
+messagelist = {}
 for json_path in json_paths:
     print(f'Importing chat export from {json_path}', end=' ')
     json_dict = json.load(open(json_path, 'r', encoding='utf-8'))
     chat_name = json_dict['name']
     json_dict = json_dict['messages']
     for m in json_dict:
-        messagelist.append(m)
+        messagelist[m['id']] = m
     print('done.')
 
 n_messages = len(messagelist)
@@ -128,7 +128,8 @@ name_from_uid = {}
 
 newest_message = -1
 
-for m in messagelist:
+for m_id in messagelist.keys():
+    m = messagelist[m_id]
     log_memberzahl = False
 
     n = n + 1
@@ -136,14 +137,14 @@ for m in messagelist:
         print(f' {round(n / n_messages * 100, 2)}%')
 
     # Skip message, if the id is already logged in parsed_messages
-    mid = int(m.get("id"))
-    if mid < newest_message:
-        print(f'  Message {mid} double; skipping')
-        continue
-    else:
-        newest_message = mid
+    #mid = int(m.get("id"))
+    #if mid < newest_message:
+    #    print(f'  Message {mid} double; skipping')
+    #    continue
+    #else:
+    #    newest_message = mid
 
-    # Skip message if it is before the set starting time
+    # Skip message if it is from before the set starting time
     if starting_time is not None:
         m_time = m.get('date')
         m_time = datetime.strptime(m_time, '%Y-%m-%dT%H:%M:%S')
