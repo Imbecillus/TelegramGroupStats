@@ -171,6 +171,7 @@ for m_id in messagelist.keys():
 
         # Replace newlines with whitespace
         text = text.replace('\\n',' ').lower()
+        text = text.replace('\n',' ').lower()
 
         # Look for hashtags in message text
         text = text.split()
@@ -258,10 +259,10 @@ for hashtag in export_hashtags:
     print(f'Exporting csv file for {hashtag}...')
     path = json_path.split('\\')[-1][0:-5] + '_' + hashtag[1:] + '.csv'
     with open(path, 'w+', encoding='utf-32') as f:
-        f.write('Tagger;Message replied to;Original message\n')
+        f.write('Tagger;Feedline;Punchline\n')
 
         for entry in hashtag_history[hashtag]:
-            f.write(f'"{entry[0]}";"{entry[1]}";"{entry[2]}";\n')
+            f.write(f'"{entry[0]}";"{entry[1]}";"{entry[2]}"\n')
         f.close()
 
 if show_visualization:
