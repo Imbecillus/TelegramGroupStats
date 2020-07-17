@@ -87,6 +87,8 @@ parser.add_argument('--log', action='store_true', help='Logarithmic scales for v
 parser.add_argument('--p', dest='print', nargs='?', type=int, help='Print p stats to command line. Set to -1 to print everything.')
 parser.add_argument('--from', dest='starting_time', nargs='?', help='Starting timestamp. Format: "YYYY/MM/DD-HH:MM:SS"')
 parser.add_argument('--hashtag', dest='hashtag_export', action='append', help='Specify a hashtag. The script will find each occurence of the hashtag and the message it was used in reply to and export it as a csv list. Can be used multiple times for multiple hashtags.')
+parser.add_argument('--wc', dest='word_cloud', action='store_true', help='Generate word cloud.')
+parser.add_argument('--wcu', dest='word_cloud_users', action='append', help='Generate word cloud for user. Can be used multiple times for multiple word clouds.')
 
 arguments = parser.parse_args(sys.argv[1:])
 
@@ -94,9 +96,17 @@ show_visualization = arguments.vis
 export_visualization = arguments.png
 export_csv = arguments.csv
 export_json = arguments.json
-export_hashtags = [x.lower() for x in arguments.hashtag_export]
+if arguments.hashtag_export is not None:
+    export_hashtags = [x.lower() for x in arguments.hashtag_export]
+else:
+    export_hashtags = []
 json_paths = arguments.json_paths
 p = arguments.print
+generate_wordcloud = arguments.word_cloud
+if generate_wordcloud:
+    from stop_words import safe_get_stop_words
+    stop_words = safe_get_stop_words('de')
+wordcloud_users = arguments.word_cloud_users
 if arguments.starting_time is not None:
     starting_time = datetime.strptime(arguments.starting_time, '%Y/%m/%d-%H:%M:%S')
 else:
@@ -132,6 +142,10 @@ name_from_uid = {}
 hashtag_history = {}
 for hashtag in export_hashtags:
     hashtag_history[hashtag] = []
+
+# Initialize dictionaries for wordclouds
+all_words = {}
+user_wordclouds = {}
 
 newest_message = -1
 
@@ -204,6 +218,25 @@ for m_id in messagelist.keys():
 
                     new_entry = [tagging_user, replied_to_message, hashtag_message]
                     hashtag_history[word].append(new_entry)
+            else:
+                word = advanced_strip(word, '()[]/\\?!%&.,;:-')
+                if generate_wordcloud:
+                    if len(word) > 3 and word not in stop_words:
+                        if word not in all_words:
+                            all_words[word] = 1
+                        else:
+                            all_words[word] += 1
+
+                    if name_from_uid[sender] in wordcloud_users:
+                        if sender not in user_wordclouds:
+                            user_wordclouds[sender] = {}
+
+                        if len(word) > 3 and word not in stop_words:
+                            if word not in user_wordclouds[sender]:
+                                user_wordclouds[sender][word] = 1
+                            else:
+                                user_wordclouds[sender][word] += 1
+
         
         if log_memberzahl and len(text) == 2:
             # Contains #memberzahl and only two words. One is the hashtag, the other is the number
@@ -311,3 +344,27 @@ if show_visualization:
     plt.show()
     if export_visualization:
         plt.savefig(memberzahl_file + '.png')
+
+if generate_wordcloud:
+    print('Generating word clouds...')
+    from wordcloud import WordCloud
+    import matplotlib.pyplot as plt
+
+    print(' Overall word cloud')
+
+    cloud_all = WordCloud(width=1200, height=800, background_color='white')
+    cloud_all.generate_from_frequencies(all_words)
+
+    plt.imshow(cloud_all, interpolation='bilinear')
+    plt.show()
+
+    print(' User word clouds...')
+    for user in user_wordclouds:
+        name = name_from_uid[user]
+        print(f'   {name}')
+        cloud_dict = user_wordclouds[user]
+        cloud_user = WordCloud(width=1200, height=800, background_color='white')
+        cloud_user.generate_from_frequencies(cloud_dict)
+        plt.imshow(cloud_user, interpolation='bilinear')
+        plt.title(name)
+        plt.show()
