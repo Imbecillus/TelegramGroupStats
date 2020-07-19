@@ -88,7 +88,7 @@ parser.add_argument('--p', dest='print', nargs='?', type=int, help='Print p stat
 parser.add_argument('--from', dest='starting_time', nargs='?', help='Starting timestamp. Format: "YYYY/MM/DD-HH:MM:SS"')
 parser.add_argument('--hashtag', dest='hashtag_export', action='append', help='Specify a hashtag. The script will find each occurence of the hashtag and the message it was used in reply to and export it as a csv list. Can be used multiple times for multiple hashtags.')
 parser.add_argument('--wc', dest='word_cloud', action='store_true', help='Generate word cloud.')
-parser.add_argument('--wcu', dest='word_cloud_users', action='append', help='Generate word cloud for user. Can be used multiple times for multiple word clouds.')
+parser.add_argument('--wcu', dest='word_cloud_users', type=int, metavar='uid', action='append', help='Generate word cloud for user [uid]. Can be used multiple times for multiple word clouds.')
 
 arguments = parser.parse_args(sys.argv[1:])
 
@@ -227,11 +227,11 @@ for m_id in messagelist.keys():
                         else:
                             all_words[word] += 1
 
-                    if name_from_uid[sender] in wordcloud_users:
+                    if sender in wordcloud_users:
                         if sender not in user_wordclouds:
                             user_wordclouds[sender] = {}
 
-                        if len(word) > 3 and word not in stop_words:
+                        if len(word) > 3 and word not in stop_words and not word.startswith('@'):
                             if word not in user_wordclouds[sender]:
                                 user_wordclouds[sender][word] = 1
                             else:
