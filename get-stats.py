@@ -106,6 +106,7 @@ generate_wordcloud = arguments.word_cloud
 if generate_wordcloud:
     from stop_words import safe_get_stop_words
     stop_words = safe_get_stop_words('de')
+    stop_words.append('https')
 wordcloud_users = arguments.word_cloud_users
 if arguments.starting_time is not None:
     starting_time = datetime.strptime(arguments.starting_time, '%Y/%m/%d-%H:%M:%S')
