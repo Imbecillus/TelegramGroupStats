@@ -86,6 +86,7 @@ parser.add_argument('--member_history', nargs='?', help='Import a json file of p
 parser.add_argument('--log', action='store_true', help='Logarithmic scales for visualizations')
 parser.add_argument('--p', dest='print', nargs='?', type=int, help='Print p stats to command line. Set to -1 to print everything.')
 parser.add_argument('--from', dest='starting_time', nargs='?', help='Starting timestamp. Format: "YYYY/MM/DD-HH:MM:SS"')
+parser.add_argument('--to', dest='stopping_time', nargs='?', help='Stopping timestamp. Format: "YYYY/MM/DD-HH:MM:SS"')
 parser.add_argument('--hashtag', dest='hashtag_export', action='append', help='Specify a hashtag. The script will find each occurence of the hashtag and the message it was used in reply to and export it as a csv list. Can be used multiple times for multiple hashtags.')
 parser.add_argument('--wc', dest='word_cloud', action='store_true', help='Generate word cloud.')
 parser.add_argument('--wcu', dest='word_cloud_users', type=int, metavar='uid', action='append', help='Generate word cloud for user [uid]. Can be used multiple times for multiple word clouds.')
@@ -107,11 +108,17 @@ if generate_wordcloud:
     from stop_words import safe_get_stop_words
     stop_words = safe_get_stop_words('de')
     stop_words.append('https')
+    stop_words.append('http')
+    stop_words.append('schon')
 wordcloud_users = arguments.word_cloud_users
 if arguments.starting_time is not None:
     starting_time = datetime.strptime(arguments.starting_time, '%Y/%m/%d-%H:%M:%S')
 else:
     starting_time = None
+if arguments.stopping_time is not None:
+    stopping_time = datetime.strptime(arguments.stopping_time, '%Y/%m/%d-%H:%M:%S')
+else:
+    stopping_time = None
 
 # Importing chat exports
 messagelist = {}
@@ -168,6 +175,15 @@ for m_id in messagelist.keys():
         else:
             print(f'  Reached starting time ({starting_time})')
             starting_time = None
+
+    # Skip message if it is from after the set stopping time
+    if stopping_time is not None:
+        m_time = m.get('date')
+        m_time = datetime.strptime(m_time, '%Y-%m-%dT%H:%M:%S')
+        difference = stopping_time - m_time
+        if (difference / timedelta(seconds=1)) <= 0:
+            print(f'  Reached stopping time ({stopping_time})')
+            break
 
     sender = m.get('from_id', None)
     if sender:
@@ -228,7 +244,7 @@ for m_id in messagelist.keys():
                         else:
                             all_words[word] += 1
 
-                    if sender in wordcloud_users:
+                    if wordcloud_users and sender in wordcloud_users:
                         if sender not in user_wordclouds:
                             user_wordclouds[sender] = {}
 
