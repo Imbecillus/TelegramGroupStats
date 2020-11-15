@@ -129,6 +129,12 @@ dmypy.json
 .pyre/
 
 # Files needed to store chats
-.html
-.json
-.csv
+*.html
+*.json
+*.csv
+*.txt
+*.xlsx
+
+images/
+*.png
+ChatExport*/

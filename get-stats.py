@@ -5,8 +5,11 @@ print('TELEGRAM GROUP STATS')
 import sys
 import json
 import argparse
+import random
 from datetime import datetime
 from datetime import timedelta
+
+custom_stop_words = ['https', 'http', 'schon', 'immer', 'halt', 'wäre', 'mehr', 'heute', 'morgen', 'gestern', 'ganz', 'hätte']
 
 # FUNCTIONS
 def sort_and_print(items, percentages=False, stop_at=None, replace_member_names=False):
@@ -39,7 +42,7 @@ def sort_and_print(items, percentages=False, stop_at=None, replace_member_names=
                     return
 
 def save_csv(dictionary, csv_path):
-    with open(csv_path, 'w+', encoding='utf-32') as f:
+    with open(csv_path, 'w+', encoding='utf-8') as f:
         f.write('Entry;Count\n')
         for k in dictionary.keys():
             f.write(f'{k};{dictionary[k]}\n')
@@ -90,6 +93,8 @@ parser.add_argument('--to', dest='stopping_time', nargs='?', help='Stopping time
 parser.add_argument('--hashtag', dest='hashtag_export', action='append', help='Specify a hashtag. The script will find each occurence of the hashtag and the message it was used in reply to and export it as a csv list. Can be used multiple times for multiple hashtags.')
 parser.add_argument('--wc', dest='word_cloud', action='store_true', help='Generate word cloud.')
 parser.add_argument('--wcu', dest='word_cloud_users', type=int, metavar='uid', action='append', help='Generate word cloud for user [uid]. Can be used multiple times for multiple word clouds.')
+parser.add_argument('--e', dest='emojis', action='store_true', help='Count emoji stats')
+parser.add_argument('--image', dest='image', nargs='?', help='An image to be used for wordcloud generation')
 
 arguments = parser.parse_args(sys.argv[1:])
 
@@ -107,9 +112,19 @@ generate_wordcloud = arguments.word_cloud
 if generate_wordcloud:
     from stop_words import safe_get_stop_words
     stop_words = safe_get_stop_words('de')
-    stop_words.append('https')
-    stop_words.append('http')
-    stop_words.append('schon')
+    for word in custom_stop_words:
+        stop_words.append(word)
+    print('Stop words:')
+    print(stop_words)
+    if arguments.image:
+        import numpy as np
+        from PIL import Image
+        wordcloud_mask = np.array(Image.open(arguments.image))
+        use_mask = True
+    else:
+        wordcloud_mask = None
+        use_mask = False
+
 wordcloud_users = arguments.word_cloud_users
 if arguments.starting_time is not None:
     starting_time = datetime.strptime(arguments.starting_time, '%Y/%m/%d-%H:%M:%S')
@@ -119,6 +134,7 @@ if arguments.stopping_time is not None:
     stopping_time = datetime.strptime(arguments.stopping_time, '%Y/%m/%d-%H:%M:%S')
 else:
     stopping_time = None
+emojis = arguments.emojis
 
 # Importing chat exports
 messagelist = {}
@@ -154,6 +170,13 @@ for hashtag in export_hashtags:
 # Initialize dictionaries for wordclouds
 all_words = {}
 user_wordclouds = {}
+
+# Initialize dictionary for emojis
+if emojis:
+    dict_emojis = {}
+    emoji_names = {}
+    import demoji
+    demoji.download_codes()
 
 newest_message = -1
 
@@ -204,6 +227,16 @@ for m_id in messagelist.keys():
         text = text.replace('\\n',' ').lower()
         text = text.replace('\n',' ').lower()
 
+        # Get emojis in message text
+        if emojis:
+            msg_emojis = demoji.findall(text)
+            for e in msg_emojis.keys():
+                if e in dict_emojis:
+                    dict_emojis[e] += 1
+                else:
+                    dict_emojis[e] = 1
+                    emoji_names[e] = msg_emojis[e]
+
         # Look for hashtags in message text
         text = text.split()
 
@@ -222,7 +255,7 @@ for m_id in messagelist.keys():
                 if word == '#memberzahl':
                     log_memberzahl = True
 
-                if word in export_hashtags:
+                if word[1:] in export_hashtags:
                     hashtag_message = strip_formatting(m.get('text', None)).replace('\n', ' ')
                     
                     replied_to_message = m.get('reply_to_message_id', None)
@@ -234,7 +267,7 @@ for m_id in messagelist.keys():
                     tagging_user = m.get('from', None)
 
                     new_entry = [tagging_user, replied_to_message, hashtag_message]
-                    hashtag_history[word].append(new_entry)
+                    hashtag_history[word[1:]].append(new_entry)
             else:
                 word = advanced_strip(word, '()[]/\\?!%&.,;:-')
                 if generate_wordcloud:
@@ -286,6 +319,14 @@ print('USERS')
 if p >= 0:
     sort_and_print(members.items(), percentages=n_messages, stop_at=p, replace_member_names=True)
 
+if emojis:
+    print('EMOJIS')
+    if p >= 0:
+        emoji_name_dict = {}
+        for e in dict_emojis:
+            emoji_name_dict[emoji_names[e]] = dict_emojis[e]
+        sort_and_print(emoji_name_dict.items(), percentages=n_messages, stop_at=p)
+
 members_file = json_path.split('\\')[-1][0:-5] + '_members'
 hashtags_file = json_path.split('\\')[-1][0:-5] + '_hashtags'
 memberzahl_file = json_path.split('\\')[-1][0:-5] + '_memberzahl'
@@ -307,8 +348,8 @@ if export_csv:
 
 for hashtag in export_hashtags:
     print(f'Exporting csv file for {hashtag}...')
-    path = json_path.split('\\')[-1][0:-5] + '_' + hashtag[1:] + '.csv'
-    with open(path, 'w+', encoding='utf-32') as f:
+    path = json_path.split('\\')[-1][0:-5] + '_' + hashtag + '.csv'
+    with open(path, 'w+', encoding='utf-8') as f:
         f.write('Tagger;Feedline;Punchline\n')
 
         for entry in hashtag_history[hashtag]:
@@ -323,7 +364,7 @@ if show_visualization:
     members = {k: v for k, v in sorted(members.items(), key=lambda item: item[1])}
     keys = [k for k in members.keys()]
     for k in keys:
-        if members[k] < 250:
+        if members[k] < 100:
             members.pop(k)
 
     plt.bar([x + 1 for x in range(len(members))], [members[x] for x in members.keys()])
@@ -340,7 +381,7 @@ if show_visualization:
     hashtags = {k: v for k, v in sorted(hashtags.items(), key=lambda item: item[1])}
     keys = [k for k in hashtags.keys()]
     for k in keys:
-        if hashtags[k] < 75:
+        if hashtags[k] < 10:
             hashtags.pop(k)
 
     plt.bar([x + 1 for x in range(len(hashtags))], [hashtags[x] for x in hashtags.keys()])
@@ -353,6 +394,18 @@ if show_visualization:
     if export_visualization:
         plt.savefig(hashtags_file + '.png')
 
+    if emojis:
+        print('   Emojis')
+        dict_emojis = {k: v for k, v in sorted(dict_emojis.items(), key=lambda item: item[1])}
+
+        plt.bar([x + 1 for x in range(len(dict_emojis))], [dict_emojis[x] for x in dict_emojis.keys()])
+        plt.xticks([x + 1 for x in range(len(dict_emojis))], [x for x in dict_emojis.keys()], rotation='vertical', fontsize='x-small')
+        if arguments.log:
+            plt.yscale('log')
+        plt.title(f"Emojis in {chat_name}")
+        plt.grid(True, axis='y', linestyle='--')
+        plt.show()
+
     print('   Memberzahl')
     plt.plot([datetime.strptime(x, '%Y-%m-%dT%H:%M:%S') for x in memberzahl_log.keys()], [y for y in memberzahl_log.values()])
     plt.title(f"User-Entwicklung in {chat_name}")
@@ -364,15 +417,24 @@ if show_visualization:
 
 if generate_wordcloud:
     print('Generating word clouds...')
-    from wordcloud import WordCloud
+    from wordcloud import WordCloud, ImageColorGenerator
+    import matplotlib.colors as clr
     import matplotlib.pyplot as plt
 
     print(' Overall word cloud')
 
-    cloud_all = WordCloud(width=1200, height=800, background_color='white')
+    cloud_all = WordCloud(width=1920, height=1080, background_color='white', mask=wordcloud_mask)
     cloud_all.generate_from_frequencies(all_words)
 
-    plt.imshow(cloud_all, interpolation='bilinear')
+    if use_mask:
+        the_colors = [[22, 91, 51], [20, 107, 58], [248, 178, 41], [234, 70, 48], [187, 37, 40]]
+        def christmas_colors(word, font_size, position, orientation, random_state=None, **kwargs):
+            r = random.randint(0, 4)
+            return f'rgb({the_colors[r][0]}, {the_colors[r][1]}, {the_colors[r][2]})'
+        plt.imshow(cloud_all.recolor(color_func=christmas_colors), interpolation='bilinear')
+    else:
+        plt.imshow(cloud_all, interpolation='bilinear')
+    plt.axis('off')
     plt.show()
 
     print(' User word clouds...')
@@ -380,8 +442,17 @@ if generate_wordcloud:
         name = name_from_uid[user]
         print(f'   {name}')
         cloud_dict = user_wordclouds[user]
-        cloud_user = WordCloud(width=1200, height=800, background_color='white')
+        cloud_user = WordCloud(width=1920, height=1080, background_color='white', mask=wordcloud_mask, contour_color='black', contour_width=1)
         cloud_user.generate_from_frequencies(cloud_dict)
-        plt.imshow(cloud_user, interpolation='bilinear')
-        plt.title(name)
-        plt.show()
+        if use_mask:
+            image_colors = ImageColorGenerator(wordcloud_mask)
+            cloud_user.recolor(color_func=image_colors)
+            plt.imshow(cloud_user.recolor(color_func=image_colors), interpolation='bilinear')
+            plt.axis('off')
+            plt.title(name)
+            plt.show()
+        else:
+            plt.imshow(cloud_user, interpolation='bilinear')
+            plt.axis('off')
+            plt.title(name)
+            plt.show()
