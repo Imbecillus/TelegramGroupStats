@@ -9,7 +9,7 @@ import random
 from datetime import datetime
 from datetime import timedelta
 
-custom_stop_words = ['https', 'http', 'schon', 'immer', 'halt', 'wäre', 'mehr', 'heute', 'morgen', 'gestern', 'ganz', 'hätte']
+custom_stop_words = ['https', 'http', 'schon', 'immer', 'halt', 'wäre', 'mehr', 'heute', 'morgen', 'gestern', 'ganz', 'hätte', 'hast', 'gerade', 'einfach', 'gibt']
 
 # FUNCTIONS
 def sort_and_print(items, percentages=False, stop_at=None, replace_member_names=False):
