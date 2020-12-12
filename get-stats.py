@@ -41,11 +41,14 @@ def sort_and_print(items, percentages=False, stop_at=None, replace_member_names=
                 if n == stop_at:
                     return
 
-def save_csv(dictionary, csv_path):
+def save_csv(dictionary, csv_path, replace_member_names=False):
     with open(csv_path, 'w+', encoding='utf-8') as f:
         f.write('Entry;Count\n')
         for k in dictionary.keys():
-            f.write(f'{k};{dictionary[k]}\n')
+            if not replace_member_names:
+                f.write(f'{k};{dictionary[k]}\n')
+            else:
+                f.write(f'{name_from_uid[k]};{dictionary[k]}\n')
         f.close()
         
 # Like str.strip(), but removes the entire rest of the string after a char has been found
@@ -330,6 +333,8 @@ if emojis:
 members_file = json_path.split('\\')[-1][0:-5] + '_members'
 hashtags_file = json_path.split('\\')[-1][0:-5] + '_hashtags'
 memberzahl_file = json_path.split('\\')[-1][0:-5] + '_memberzahl'
+words_file = json_path.split('\\')[-1][0:-5] + '_words'
+emojis_file = json_path.split('\\')[-1][0:-5] + '_emojis'
 
 # Export json files
 if export_json:
@@ -338,13 +343,19 @@ if export_json:
     json.dump(hashtags, open(hashtags_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
     json.dump(memberzahl_log, open(memberzahl_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
     json.dump(name_from_uid, open(members_file + '_key.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    json.dump(all_words, open(words_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    if emojis:
+        json.dump(dict_emojis, open(emojis_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
 
 # Export csv files
 if export_csv:
     print('Exporting csv files...')
-    save_csv(members, members_file + '.csv')
+    save_csv(members, members_file + '.csv', True)
     save_csv(hashtags, hashtags_file + '.csv')
     save_csv(memberzahl_log, memberzahl_file + '.csv')
+    save_csv(all_words, words_file + '.csv')
+    if emojis:
+        save_csv(dict_emojis, emojis_file + '.csv')
 
 for hashtag in export_hashtags:
     print(f'Exporting csv file for {hashtag}...')
