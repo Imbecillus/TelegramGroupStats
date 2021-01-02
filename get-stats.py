@@ -98,6 +98,7 @@ parser.add_argument('--wc', dest='word_cloud', action='store_true', help='Genera
 parser.add_argument('--wcu', dest='word_cloud_users', type=int, metavar='uid', action='append', help='Generate word cloud for user [uid]. Can be used multiple times for multiple word clouds.')
 parser.add_argument('--e', dest='emojis', action='store_true', help='Count emoji stats')
 parser.add_argument('--image', dest='image', nargs='?', help='An image to be used for wordcloud generation')
+parser.add_argument('--in', dest='config', type=str, help='A config file which contains one json path per line')
 
 arguments = parser.parse_args(sys.argv[1:])
 
@@ -109,7 +110,16 @@ if arguments.hashtag_export is not None:
     export_hashtags = [x.lower() for x in arguments.hashtag_export]
 else:
     export_hashtags = []
-json_paths = arguments.json_paths
+    json_paths = []
+if arguments.config:
+    with open(arguments.config, 'r', encoding='utf-8') as f:
+        line = f.readline()
+        while line:
+            json_paths.append(line.replace('\n', ''))
+            line = f.readline()
+if arguments.json_paths:
+    json_paths.append(arguments.json_paths)
+print(json_paths)
 p = arguments.print
 generate_wordcloud = arguments.word_cloud
 if generate_wordcloud:

@@ -31,7 +31,7 @@ while line:
   userdict[user] = count
   line = f.readline()
 
-cloud = WordCloud(width=1920, height=1080, background_color='white')
+cloud = WordCloud(width=1920, height=1080, background_color='white', min_font_size=24)
 cloud.generate_from_frequencies(userdict)
 
 plt.imshow(cloud, interpolation='bilinear')
