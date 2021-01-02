@@ -99,6 +99,7 @@ parser.add_argument('--wcu', dest='word_cloud_users', type=int, metavar='uid', a
 parser.add_argument('--e', dest='emojis', action='store_true', help='Count emoji stats')
 parser.add_argument('--image', dest='image', nargs='?', help='An image to be used for wordcloud generation')
 parser.add_argument('--in', dest='config', type=str, help='A config file which contains one json path per line')
+parser.add_argument('--user_dict', dest='userdict', type=str, help='A json file which contains a dictionary of user ids and names')
 
 arguments = parser.parse_args(sys.argv[1:])
 
@@ -118,7 +119,8 @@ if arguments.config:
             json_paths.append(line.replace('\n', ''))
             line = f.readline()
 if arguments.json_paths:
-    json_paths.append(arguments.json_paths)
+    for x in arguments.json_paths:
+        json_paths.append(x)
 print(json_paths)
 p = arguments.print
 generate_wordcloud = arguments.word_cloud
@@ -172,8 +174,10 @@ memberzahl_log = {}
 if arguments.member_history is not None:
     memberzahl_log = json.load(open(arguments.member_history, 'r', encoding='utf-8'))
 
-# Initialize member dictionary
+# Initialize member dictionary and import (if given)
 name_from_uid = {}
+if arguments.userdict is not None:
+    name_from_uid = json.load(open(arguments.userdict, 'r', encoding='utf-8'))
 
 # Initialize dictionary of hashtag histories
 hashtag_history = {}
@@ -221,7 +225,7 @@ for m_id in messagelist.keys():
             print(f'  Reached stopping time ({stopping_time})')
             break
 
-    sender = m.get('from_id', None)
+    sender = str(m.get('from_id', None))
     if sender:
         if sender not in members.keys():
             members[sender] = 1
@@ -316,8 +320,8 @@ for m_id in messagelist.keys():
                 print('  Unexpected occurence of #memberzahl; skipped')
 
 
+print(name_from_uid)
 
-    
 print(f'Found {len(members)} people who wrote a message and {len(hashtags)} unique hashtags.')
 print(f'Found {len(memberzahl_log)} times #memberzahl.')
 print('')
