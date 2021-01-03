@@ -95,7 +95,7 @@ parser.add_argument('--from', dest='starting_time', nargs='?', help='Starting ti
 parser.add_argument('--to', dest='stopping_time', nargs='?', help='Stopping timestamp. Format: "YYYY/MM/DD-HH:MM:SS"')
 parser.add_argument('--hashtag', dest='hashtag_export', action='append', help='Specify a hashtag. The script will find each occurence of the hashtag and the message it was used in reply to and export it as a csv list. Can be used multiple times for multiple hashtags.')
 parser.add_argument('--wc', dest='word_cloud', action='store_true', help='Generate word cloud.')
-parser.add_argument('--wcu', dest='word_cloud_users', type=int, metavar='uid', action='append', help='Generate word cloud for user [uid]. Can be used multiple times for multiple word clouds.')
+parser.add_argument('--wcu', dest='word_cloud_users', type=str, metavar='uid', action='append', help='Generate word cloud for user [uid]. Can be used multiple times for multiple word clouds.')
 parser.add_argument('--e', dest='emojis', action='store_true', help='Count emoji stats')
 parser.add_argument('--image', dest='image', nargs='?', help='An image to be used for wordcloud generation')
 parser.add_argument('--in', dest='config', type=str, help='A config file which contains one json path per line')
@@ -320,7 +320,6 @@ for m_id in messagelist.keys():
                 print('  Unexpected occurence of #memberzahl; skipped')
 
 
-print(name_from_uid)
 
 print(f'Found {len(members)} people who wrote a message and {len(hashtags)} unique hashtags.')
 print(f'Found {len(memberzahl_log)} times #memberzahl.')
