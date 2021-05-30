@@ -97,6 +97,7 @@ parser.add_argument('--hashtag', dest='hashtag_export', action='append', help='S
 parser.add_argument('--wc', dest='word_cloud', action='store_true', help='Generate word cloud.')
 parser.add_argument('--wcu', dest='word_cloud_users', type=str, metavar='uid', action='append', help='Generate word cloud for user [uid]. Can be used multiple times for multiple word clouds.')
 parser.add_argument('--e', dest='emojis', action='store_true', help='Count emoji stats')
+parser.add_argument('--d', dest='directions', action='store_true', help='Count stats for directions')
 parser.add_argument('--image', dest='image', nargs='?', help='An image to be used for wordcloud generation')
 parser.add_argument('--in', dest='config', type=str, help='A config file which contains one json path per line')
 parser.add_argument('--user_dict', dest='userdict', type=str, help='A json file which contains a dictionary of user ids and names')
@@ -150,6 +151,7 @@ if arguments.stopping_time is not None:
 else:
     stopping_time = None
 emojis = arguments.emojis
+directions = arguments.directions
 
 # Importing chat exports
 messagelist = {}
@@ -194,6 +196,10 @@ if emojis:
     emoji_names = {}
     import demoji
     demoji.download_codes()
+
+# Initialize dictionary for directions
+if directions:
+    dict_directions = {}
 
 newest_message = -1
 
@@ -285,6 +291,11 @@ for m_id in messagelist.keys():
 
                     new_entry = [tagging_user, replied_to_message, hashtag_message]
                     hashtag_history[word[1:]].append(new_entry)
+            elif directions and word.startswith('*') and word.endswith('*'):
+                if word not in dict_directions:
+                    dict_directions[word] = 1
+                else:
+                    dict_directions[word] += 1
             else:
                 word = advanced_strip(word, '()[]/\\?!%&.,;:-')
                 if generate_wordcloud:
@@ -343,11 +354,17 @@ if emojis:
             emoji_name_dict[emoji_names[e]] = dict_emojis[e]
         sort_and_print(emoji_name_dict.items(), percentages=n_messages, stop_at=p)
 
+if directions:
+    print('DIRECTIONS')
+    if p >= 0:
+        sort_and_print(dict_directions.items(), stop_at=p)
+
 members_file = json_path.split('\\')[-1][0:-5] + '_members'
 hashtags_file = json_path.split('\\')[-1][0:-5] + '_hashtags'
 memberzahl_file = json_path.split('\\')[-1][0:-5] + '_memberzahl'
 words_file = json_path.split('\\')[-1][0:-5] + '_words'
 emojis_file = json_path.split('\\')[-1][0:-5] + '_emojis'
+directions_file = json_path.split('\\')[-1][0:-5] + '_directions'
 
 # Export json files
 if export_json:
@@ -359,6 +376,8 @@ if export_json:
     json.dump(all_words, open(words_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
     if emojis:
         json.dump(dict_emojis, open(emojis_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    if directions:
+        json.dump(dict_directions, open(directions_file + '.json', 'w', encoding='utf-8'), ensure_ascii=False)
 
 # Export csv files
 if export_csv:
@@ -369,6 +388,8 @@ if export_csv:
     save_csv(all_words, words_file + '.csv')
     if emojis:
         save_csv(dict_emojis, emojis_file + '.csv')
+    if directions:
+        save_csv(dict_directions, directions_file + '.csv')
 
 for hashtag in export_hashtags:
     print(f'Exporting csv file for {hashtag}...')
@@ -430,6 +451,18 @@ if show_visualization:
         plt.grid(True, axis='y', linestyle='--')
         plt.show()
 
+    if directions:
+        print('   Directions')
+        dict_directions = {k: v for k, v in sorted(dict_directions.items(), key=lambda item: item[1])}
+
+        plt.bar([x + 1 for x in range(len(dict_directions))], [dict_directions[x] for x in dict_directions.keys()])
+        plt.xticks([x + 1 for x in range(len(dict_directions))], [x for x in dict_directions.keys()], rotation='vertical', fontsize='x-small')
+        if arguments.log:
+            plt.yscale('log')
+        plt.title(f"Directions in {chat_name}")
+        plt.grid(True, axis='y', linestyle='--')
+        plt.show()
+
     print('   Memberzahl')
     plt.plot([datetime.strptime(x, '%Y-%m-%dT%H:%M:%S') for x in memberzahl_log.keys()], [y for y in memberzahl_log.values()])
     plt.title(f"User-Entwicklung in {chat_name}")
@@ -480,3 +513,11 @@ if generate_wordcloud:
             plt.axis('off')
             plt.title(name)
             plt.show()
+
+    if directions:
+        print(' Directions word cloud...')
+        cloud_directions = WordCloud(width=1920, height=1080, background_color='white', mask=wordcloud_mask)
+        cloud_directions.generate_from_frequencies(dict_directions)
+        plt.imshow(cloud_directions, interpolation='bilinear')
+        plt.axis('off')
+        plt.show()
