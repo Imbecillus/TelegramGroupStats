@@ -231,7 +231,8 @@ for m_id in messagelist.keys():
             print(f'  Reached stopping time ({stopping_time})')
             break
 
-    sender = str(m.get('from_id', None))
+    # Get sender id, but ignore "user" prefix for compatibility with old exports
+    sender = str(m.get('from_id', None)).replace('user', '')
     if sender:
         if sender not in members.keys():
             members[sender] = 1
