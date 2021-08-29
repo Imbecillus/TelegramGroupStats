@@ -41,6 +41,7 @@ def sort_and_print(items, percentages=False, stop_at=None, replace_member_names=
                 if n == stop_at:
                     return
 
+
 def save_csv(dictionary, csv_path, replace_member_names=False):
     with open(csv_path, 'w+', encoding='utf-8') as f:
         f.write('Entry;Count\n')
@@ -50,7 +51,8 @@ def save_csv(dictionary, csv_path, replace_member_names=False):
             else:
                 f.write(f'{name_from_uid[k]};{dictionary[k]}\n')
         f.close()
-        
+
+
 # Like str.strip(), but removes the entire rest of the string after a char has been found
 def advanced_strip(word, characters):
     for i in range(len(characters)):
@@ -60,6 +62,7 @@ def advanced_strip(word, characters):
             word = word[:ix]
 
     return word
+
 
 def strip_formatting(input):
     if type(input) is list:
@@ -74,6 +77,8 @@ def strip_formatting(input):
         return text
     else:
         return input
+
+
 
 # Parsing arguments
 json_paths = []
@@ -101,10 +106,21 @@ parser.add_argument('--d', dest='directions', action='store_true', help='Count s
 parser.add_argument('--image', dest='image', nargs='?', help='An image to be used for wordcloud generation')
 parser.add_argument('--in', dest='config', type=str, help='A config file which contains one json path per line')
 parser.add_argument('--user_dict', dest='userdict', type=str, help='A json file which contains a dictionary of user ids and names')
+parser.add_argument('--vis_member_cutoff', type=int, nargs='?', dest='vis_member_cutoff', help='How many messages a user has to have sent to be included in the visualization.')
+parser.add_argument('--vis_hashtags_cutoff', type=int, nargs='?', dest='vis_hashtag_cutoff', help='How many messages a user has to have sent to be included in the visualization.')
 
 arguments = parser.parse_args(sys.argv[1:])
 
 show_visualization = arguments.vis
+if show_visualization:
+    if (arguments.vis_member_cutoff):
+        vis_member_cutoff = arguments.vis_member_cutoff
+    else:
+        vis_member_cutoff = 100
+    if (arguments.vis_hashtag_cutoff):
+        vis_hashtag_cutoff = arguments.vis_hashtag_cutoff
+    else:
+        vis_hashtag_cutoff = 10
 export_visualization = arguments.png
 export_csv = arguments.csv
 export_json = arguments.json
@@ -153,6 +169,7 @@ else:
 emojis = arguments.emojis
 directions = arguments.directions
 
+
 # Importing chat exports
 messagelist = {}
 for json_path in json_paths:
@@ -169,6 +186,8 @@ n = 0
 
 print(f'Parsing through {n_messages} messages.')
 members = {}
+members_characters_total = {}
+members_characters_average = {}
 hashtags = {}
 memberzahl_log = {}
 
@@ -251,6 +270,12 @@ for m_id in messagelist.keys():
         text = text.replace('\\n',' ').lower()
         text = text.replace('\n',' ').lower()
 
+        # Save length of message
+        if sender not in members_characters_total.keys():
+            members_characters_total[sender] = len(text)
+        else:
+            members_characters_total[sender] += len(text)
+
         # Get emojis in message text
         if emojis:
             msg_emojis = demoji.findall(text)
@@ -331,6 +356,9 @@ for m_id in messagelist.keys():
             except:
                 print('  Unexpected occurence of #memberzahl; skipped')
 
+# Calculate average message lengths
+for sender in members_characters_total.keys():
+    members_characters_average[sender] = members_characters_total[sender] / members[sender]
 
 
 print(f'Found {len(members)} people who wrote a message and {len(hashtags)} unique hashtags.')
@@ -360,6 +388,8 @@ if directions:
     if p >= 0:
         sort_and_print(dict_directions.items(), stop_at=p)
 
+if not json_path:
+    json_path = './export.json'
 members_file = json_path.split('\\')[-1][0:-5] + '_members'
 hashtags_file = json_path.split('\\')[-1][0:-5] + '_hashtags'
 memberzahl_file = json_path.split('\\')[-1][0:-5] + '_memberzahl'
@@ -410,7 +440,7 @@ if show_visualization:
     members = {k: v for k, v in sorted(members.items(), key=lambda item: item[1])}
     keys = [k for k in members.keys()]
     for k in keys:
-        if members[k] < 100:
+        if members[k] < vis_member_cutoff:
             members.pop(k)
 
     plt.bar([x + 1 for x in range(len(members))], [members[x] for x in members.keys()])
@@ -422,6 +452,38 @@ if show_visualization:
     plt.show()
     if export_visualization:
         plt.savefig(members_file + '.png')
+
+    print('    Total character count')
+    members_characters_total = {k: v for k, v in sorted(members_characters_total.items(), key=lambda item: item[1])}
+    keys = [k for k in members_characters_total.keys()]
+    for k in keys:
+        # Pop if was also sorted out of members
+        if k not in members.keys():
+            members_characters_total.pop(k)
+
+    plt.bar([x + 1 for x in range(len(members_characters_total))], [members_characters_total[x] for x in members_characters_total.keys()])
+    plt.xticks([x + 1 for x in range(len(members_characters_total))], [name_from_uid[x] for x in members_characters_total.keys()], rotation='vertical', fontsize='x-small')
+    plt.title(f"Gesamtzahl geschickter Zeichen in {chat_name}")
+    plt.grid(True, axis='y', linestyle='--')
+    if arguments.log:
+        plt.yscale('log')
+    plt.show()
+
+    print('    Total character count')
+    members_characters_average = {k: v for k, v in sorted(members_characters_average.items(), key=lambda item: item[1])}
+    keys = [k for k in members_characters_average.keys()]
+    for k in keys:
+        # Pop if was also sorted out of members
+        if k not in members.keys():
+            members_characters_average.pop(k)
+
+    plt.bar([x + 1 for x in range(len(members_characters_average))], [members_characters_average[x] for x in members_characters_average.keys()])
+    plt.xticks([x + 1 for x in range(len(members_characters_average))], [name_from_uid[x] for x in members_characters_average.keys()], rotation='vertical', fontsize='x-small')
+    plt.title(f"Durchschn. Zeichen pro Nachricht in {chat_name}")
+    plt.grid(True, axis='y', linestyle='--')
+    if arguments.log:
+        plt.yscale('log')
+    plt.show()
 
     print('   Hashtags')
     hashtags = {k: v for k, v in sorted(hashtags.items(), key=lambda item: item[1])}
