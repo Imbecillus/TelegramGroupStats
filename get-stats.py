@@ -9,7 +9,7 @@ import random
 from datetime import datetime
 from datetime import timedelta
 
-custom_stop_words = ['https', 'http', 'schon', 'immer', 'halt', 'wäre', 'mehr', 'heute', 'morgen', 'gestern', 'ganz', 'hätte', 'hast', 'gerade', 'einfach', 'gibt']
+custom_stop_words = ['schon', 'immer', 'halt', 'wäre', 'mehr', 'heute', 'morgen', 'gestern', 'ganz', 'hätte', 'hast', 'gerade', 'einfach', 'gibt']
 
 # FUNCTIONS
 def sort_and_print(items, percentages=False, stop_at=None, replace_member_names=False):
@@ -220,6 +220,9 @@ if emojis:
 if directions:
     dict_directions = {}
 
+# Initialize dictionary for number of links
+dict_user_links = {}
+
 newest_message = -1
 
 for m_id in messagelist.keys():
@@ -322,6 +325,17 @@ for m_id in messagelist.keys():
                     dict_directions[word] = 1
                 else:
                     dict_directions[word] += 1
+            elif word.startswith('http'):
+                if sender not in dict_user_links:
+                    dict_user_links[sender] = {
+                        'internal': 0,
+                        'external': 0
+                    }
+
+                if word.find('t.me/') >= 0:
+                    dict_user_links[sender]['internal'] += 1
+                else:
+                    dict_user_links[sender]['external'] += 1
             else:
                 word = advanced_strip(word, '()[]/\\?!%&.,;:-')
                 if generate_wordcloud:
@@ -469,7 +483,7 @@ if show_visualization:
         plt.yscale('log')
     plt.show()
 
-    print('    Total character count')
+    print('    Average character count')
     members_characters_average = {k: v for k, v in sorted(members_characters_average.items(), key=lambda item: item[1])}
     keys = [k for k in members_characters_average.keys()]
     for k in keys:
@@ -483,6 +497,32 @@ if show_visualization:
     plt.grid(True, axis='y', linestyle='--')
     if arguments.log:
         plt.yscale('log')
+    plt.show()
+
+    print('    Number of links')
+    members_links_total = {}
+    members_links_internal = {}
+    members_links_external = {}
+    for member in dict_user_links:
+        members_links_total[member] = dict_user_links[member]['internal'] + dict_user_links[member]['external']
+        members_links_internal[member] = dict_user_links[member]['internal']
+        members_links_external[member] = dict_user_links[member]['external']
+    
+    members_links_total = {k: v for k, v in sorted(members_links_total.items(), key=lambda item: item[1])}
+    keys = [k for k in members_links_total.keys()]
+    for k in keys:
+        # Pop if was also sorted out of members
+        if k not in members.keys():
+            members_links_total.pop(k)
+
+    fig, ax = plt.subplots()
+
+    ax.bar([x + 1 for x in range((len(members_links_total)))], [members_links_internal[x] for x in members_links_total.keys()], label='intern')
+    ax.bar([x + 1 for x in range((len(members_links_total)))], [members_links_external[x] for x in members_links_total.keys()], bottom=[members_links_internal[x] for x in members_links_total.keys()], label='extern')
+    ax.set_ylabel('Anzahl Links')
+    ax.set_title('Interne und externe Links')
+    ax.legend()
+    plt.xticks([x + 1 for x in range(len(members_links_total))], [name_from_uid[x] for x in members_links_total.keys()], rotation='vertical', fontsize='x-small')
     plt.show()
 
     print('   Hashtags')
