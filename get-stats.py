@@ -11,6 +11,8 @@ from datetime import timedelta
 
 custom_stop_words = ['schon', 'immer', 'halt', 'wäre', 'mehr', 'heute', 'morgen', 'gestern', 'ganz', 'hätte', 'hast', 'gerade', 'einfach', 'gibt']
 
+christmas_colors = [[22, 91, 51], [20, 107, 58], [248, 178, 41], [234, 70, 48], [187, 37, 40]]
+
 # FUNCTIONS
 def sort_and_print(items, percentages=False, stop_at=None, replace_member_names=False):
     sorted_items = sorted(items, key=lambda key_value: key_value[1], reverse=True)
@@ -84,6 +86,11 @@ def strip_formatting(input):
 
 
 
+def random_colors(word, font_size, position, orientation, random_state=None, **kwargs):
+    r = random.randint(0, 4)
+    return f'rgb({selected_colors[r][0]}, {selected_colors[r][1]}, {selected_colors[r][2]})'
+
+
 # Parsing arguments
 json_paths = []
 export_csv = False
@@ -112,6 +119,7 @@ parser.add_argument('--in', dest='config', type=str, help='A config file which c
 parser.add_argument('--user_dict', dest='userdict', type=str, help='A json file which contains a dictionary of user ids and names')
 parser.add_argument('--vis_member_cutoff', type=int, nargs='?', dest='vis_member_cutoff', help='How many messages a user has to have sent to be included in the visualization.')
 parser.add_argument('--vis_hashtags_cutoff', type=int, nargs='?', dest='vis_hashtag_cutoff', help='How many messages a user has to have sent to be included in the visualization.')
+parser.add_argument('--color_scheme', type=str, help='The color scheme for wordclouds and graphs. Currently supported: christmas.')
 
 arguments = parser.parse_args(sys.argv[1:])
 
@@ -160,6 +168,15 @@ if generate_wordcloud:
     else:
         wordcloud_mask = None
         use_mask = False
+
+if arguments.color_scheme == 'christmas':
+    selected_colors = christmas_colors
+    selected_colors_plt = [[c[0]/255, c[1]/255, c[2]/255] for c in selected_colors]
+    color_function = random_colors
+else:
+    selected_colors = None
+    selected_colors_plt = ['blue']
+    color_function = None
 
 wordcloud_users = arguments.word_cloud_users
 if arguments.starting_time is not None:
@@ -325,6 +342,8 @@ for m_id in messagelist.keys():
                     new_entry = [tagging_user, replied_to_message, hashtag_message]
                     hashtag_history[word[1:]].append(new_entry)
             elif directions and word.startswith('*') and word.endswith('*'):
+                if word in ['*', '**', '*-*', '*.*']:
+                    continue
                 if word not in dict_directions:
                     dict_directions[word] = 1
                 else:
@@ -461,7 +480,7 @@ if show_visualization:
         if members[k] < vis_member_cutoff:
             members.pop(k)
 
-    plt.bar([x + 1 for x in range(len(members))], [members[x] for x in members.keys()])
+    plt.bar([x + 1 for x in range(len(members))], [members[x] for x in members.keys()], color=selected_colors_plt)
     plt.xticks([x + 1 for x in range(len(members))], [name_from_uid[x] for x in members.keys()], rotation='vertical', fontsize='x-small')
     plt.title(f"User-Aktivität in {chat_name}")
     plt.grid(True, axis='y', linestyle='--')
@@ -479,7 +498,7 @@ if show_visualization:
         if k not in members.keys():
             members_characters_total.pop(k)
 
-    plt.bar([x + 1 for x in range(len(members_characters_total))], [members_characters_total[x] for x in members_characters_total.keys()])
+    plt.bar([x + 1 for x in range(len(members_characters_total))], [members_characters_total[x] for x in members_characters_total.keys()], color=selected_colors_plt)
     plt.xticks([x + 1 for x in range(len(members_characters_total))], [name_from_uid[x] for x in members_characters_total.keys()], rotation='vertical', fontsize='x-small')
     plt.title(f"Gesamtzahl geschickter Zeichen in {chat_name}")
     plt.grid(True, axis='y', linestyle='--')
@@ -495,7 +514,7 @@ if show_visualization:
         if k not in members.keys():
             members_characters_average.pop(k)
 
-    plt.bar([x + 1 for x in range(len(members_characters_average))], [members_characters_average[x] for x in members_characters_average.keys()])
+    plt.bar([x + 1 for x in range(len(members_characters_average))], [members_characters_average[x] for x in members_characters_average.keys()], color=selected_colors_plt)
     plt.xticks([x + 1 for x in range(len(members_characters_average))], [name_from_uid[x] for x in members_characters_average.keys()], rotation='vertical', fontsize='x-small')
     plt.title(f"Durchschn. Zeichen pro Nachricht in {chat_name}")
     plt.grid(True, axis='y', linestyle='--')
@@ -536,7 +555,7 @@ if show_visualization:
         if hashtags[k] < vis_hashtag_cutoff:
             hashtags.pop(k)
 
-    plt.bar([x + 1 for x in range(len(hashtags))], [hashtags[x] for x in hashtags.keys()])
+    plt.bar([x + 1 for x in range(len(hashtags))], [hashtags[x] for x in hashtags.keys()], color=selected_colors_plt)
     plt.xticks([x + 1 for x in range(len(hashtags))], [x for x in hashtags.keys()], rotation='vertical', fontsize='x-small')
     if arguments.log:
         plt.yscale('log')
@@ -550,7 +569,7 @@ if show_visualization:
         print('   Emojis')
         dict_emojis = {k: v for k, v in sorted(dict_emojis.items(), key=lambda item: item[1])}
 
-        plt.bar([x + 1 for x in range(len(dict_emojis))], [dict_emojis[x] for x in dict_emojis.keys()])
+        plt.bar([x + 1 for x in range(len(dict_emojis))], [dict_emojis[x] for x in dict_emojis.keys()], color=selected_colors_plt)
         plt.xticks([x + 1 for x in range(len(dict_emojis))], [x for x in dict_emojis.keys()], rotation='vertical', fontsize='x-small')
         if arguments.log:
             plt.yscale('log')
@@ -562,7 +581,7 @@ if show_visualization:
         print('   Directions')
         dict_directions = {k: v for k, v in sorted(dict_directions.items(), key=lambda item: item[1])}
 
-        plt.bar([x + 1 for x in range(len(dict_directions))], [dict_directions[x] for x in dict_directions.keys()])
+        plt.bar([x + 1 for x in range(len(dict_directions))], [dict_directions[x] for x in dict_directions.keys()], color=selected_colors_plt)
         plt.xticks([x + 1 for x in range(len(dict_directions))], [x for x in dict_directions.keys()], rotation='vertical', fontsize='x-small')
         if arguments.log:
             plt.yscale('log')
@@ -591,11 +610,9 @@ if generate_wordcloud:
     cloud_all.generate_from_frequencies(all_words)
 
     if use_mask:
-        the_colors = [[22, 91, 51], [20, 107, 58], [248, 178, 41], [234, 70, 48], [187, 37, 40]]
-        def christmas_colors(word, font_size, position, orientation, random_state=None, **kwargs):
-            r = random.randint(0, 4)
-            return f'rgb({the_colors[r][0]}, {the_colors[r][1]}, {the_colors[r][2]})'
-        plt.imshow(cloud_all.recolor(color_func=christmas_colors), interpolation='bilinear')
+        if not color_function:
+            color_function = ImageColorGenerator(wordcloud_mask)
+        plt.imshow(cloud_all.recolor(color_func=color_function), interpolation='bilinear')
     else:
         plt.imshow(cloud_all, interpolation='bilinear')
     plt.axis('off')
@@ -609,9 +626,9 @@ if generate_wordcloud:
         cloud_user = WordCloud(width=1920, height=1080, background_color='white', mask=wordcloud_mask, contour_color='black', contour_width=1)
         cloud_user.generate_from_frequencies(cloud_dict)
         if use_mask:
-            image_colors = ImageColorGenerator(wordcloud_mask)
-            cloud_user.recolor(color_func=image_colors)
-            plt.imshow(cloud_user.recolor(color_func=image_colors), interpolation='bilinear')
+            if not color_function:
+                color_function = ImageColorGenerator(wordcloud_mask)
+            plt.imshow(cloud_user.recolor(color_func=color_function), interpolation='bilinear')
             plt.axis('off')
             plt.title(name)
             plt.show()
@@ -625,6 +642,13 @@ if generate_wordcloud:
         print(' Directions word cloud...')
         cloud_directions = WordCloud(width=1920, height=1080, background_color='white', mask=wordcloud_mask)
         cloud_directions.generate_from_frequencies(dict_directions)
-        plt.imshow(cloud_directions, interpolation='bilinear')
-        plt.axis('off')
-        plt.show()
+        if use_mask:
+            if not color_function:
+                color_function = ImageColorGenerator(wordcloud_mask)
+            plt.imshow(cloud_directions.recolor(color_func=color_function), interpolation='bilinear')
+            plt.axis('off')
+            plt.show()
+        else:
+            plt.imshow(cloud_directions, interpolation='bilinear')
+            plt.axis('off')
+            plt.show()
