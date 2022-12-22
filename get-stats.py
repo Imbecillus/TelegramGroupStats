@@ -616,6 +616,7 @@ if generate_wordcloud:
     else:
         plt.imshow(cloud_all, interpolation='bilinear')
     plt.axis('off')
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
     plt.show()
 
     print(' User word clouds...')
@@ -631,11 +632,13 @@ if generate_wordcloud:
             plt.imshow(cloud_user.recolor(color_func=color_function), interpolation='bilinear')
             plt.axis('off')
             plt.title(name)
+            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
             plt.show()
         else:
             plt.imshow(cloud_user, interpolation='bilinear')
             plt.axis('off')
             plt.title(name)
+            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
             plt.show()
 
     if directions:
@@ -647,8 +650,10 @@ if generate_wordcloud:
                 color_function = ImageColorGenerator(wordcloud_mask)
             plt.imshow(cloud_directions.recolor(color_func=color_function), interpolation='bilinear')
             plt.axis('off')
+            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
             plt.show()
         else:
             plt.imshow(cloud_directions, interpolation='bilinear')
             plt.axis('off')
+            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
             plt.show()
