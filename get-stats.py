@@ -43,9 +43,13 @@ def sort_and_print(items, percentages=False, stop_at=None, replace_member_names=
 
 
 def save_csv(dictionary, csv_path, replace_member_names=False):
+    print(f'  exporting to {csv_path}')
     with open(csv_path, 'w+', encoding='utf-8') as f:
-        f.write('Entry;Count\n')
+        f.write('Entry;Count;Handle\n')
         for k in dictionary.keys():
+            if (dictionary[k] <= 10):
+                continue
+
             if not replace_member_names:
                 f.write(f'{k};{dictionary[k]}\n')
             else:
@@ -529,7 +533,7 @@ if show_visualization:
     hashtags = {k: v for k, v in sorted(hashtags.items(), key=lambda item: item[1])}
     keys = [k for k in hashtags.keys()]
     for k in keys:
-        if hashtags[k] < 10:
+        if hashtags[k] < vis_hashtag_cutoff:
             hashtags.pop(k)
 
     plt.bar([x + 1 for x in range(len(hashtags))], [hashtags[x] for x in hashtags.keys()])
